@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+
+/* Makes the .dark class work as a manual switch */
+@custom-variant dark (&:where(.dark, .dark *));
+
+
+@theme {
+    --font-sans:
+        "Instrument Sans", ui-sans-serif, system-ui, sans-serif,
+        "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol",
+        "Noto Color Emoji";
+}
+
+:root {
+    --background: #fdfdfc;
+    --surface: #d7ba7b;
+    --foreground: #1b1b18;
+    --muted-foreground: #706f6c;
+    --border: #e3e3e0;
+    --primary: #f53003;
+    --primary-foreground: #ffffff;
+}
+
+.dark {
+    --background: #0a0a0a;
+    --surface: #161615;
+    --foreground: #ededec;
+    --muted-foreground: #a1a09a;
+    --border: #3e3e3a;
+    --primary: #f53003;
+    --primary-foreground: #ffffff;
+}
+
+@theme inline {
+    --color-background: var(--background);
+    --color-surface: var(--surface);
+    --color-foreground: var(--foreground);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-border: var(--border);
+    --color-primary: var(--primary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-text: var(--text);
+}
+
+/* Global base */
+@layer base {
+    body {
+        background-color: var(--background);
+        color: var(--foreground);
+    }
+}

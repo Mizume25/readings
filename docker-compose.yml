@@ -1,0 +1,58 @@
+services:
+  app:
+    container_name: readings_app
+    build:
+      context: ./docker/php
+      args:
+        UID: 1000
+        GID: 1000
+    environment:
+      XDG_CONFIG_HOME: /tmp/.config
+    volumes:
+      - .:/var/www/html
+    depends_on:
+      - db
+      - redis
+
+  nginx:
+    container_name: readings_nginx
+    image: nginx:alpine
+    ports:
+      - "8000:80"
+    volumes:
+      - .:/var/www/html
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - app
+
+  db:
+    container_name: readings_db
+    image: mariadb:10.11
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: readings_db
+    volumes:
+      - db_data:/var/lib/mysql
+    ports:
+      - "3307:3306"
+
+  redis:
+    container_name: readings_redis
+    image: redis:alpine
+    ports:
+      - "6380:3379"
+
+  phpmyadmin:
+    container_name: readings_phpmyadmin
+    image: phpmyadmin
+    environment:
+      PMA_HOST: db
+      PMA_USER: root
+      PMA_PASSWORD: rootpass
+    ports:
+      - "8081:80"
+    depends_on:
+      - db
+
+volumes:
+  db_data:   
