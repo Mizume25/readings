@@ -9,6 +9,7 @@
             @foreach ($readings as $reading)
                 <x-card :card="$reading" />
             @endforeach
+            
         </div>
     </div>
 @endsection

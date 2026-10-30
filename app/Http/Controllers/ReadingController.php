@@ -13,4 +13,16 @@ class ReadingController extends Controller
 
         return view('readings/index', compact('readings'));
     }
+
+    public function toggle (string $id)
+    {
+        $reading = Reading::findOrFail($id);
+
+        $reading->update([
+            'like' => !$reading->like 
+        ]);
+
+        return back()->with('success', 'Cambio de estado completado');
+
+    }
 }

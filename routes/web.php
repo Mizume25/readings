@@ -10,3 +10,5 @@ Route::get('/', function () {
 Route::get('/', [ReadingController::class, 'index'])->name('home');
 
 Route::get('/readings/index', [ReadingController::class, 'index'])->name('home');
+
+Route::get('/readings/toggle/{id}', [ReadingController::class, 'toggle'])->name('toggle');
