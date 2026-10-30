@@ -16,7 +16,7 @@
          @if($card->like)
             <a 
             href={{  route("toggle", $card->id) }}
-            class="inline-block rounded-lg bg-gray-200 px-4 py-2 text-white hover:bg-gray-500 cursor-pointer transition-transform duration-300 hover:scale-115 ease-in-out ">
+            class="inline-block rounded-lg bg-green-900 px-4 py-2 text-white hover:bg-gray-500 cursor-pointer transition-transform duration-300 hover:scale-115 ease-in-out ">
                 <x-lucide-thumbs-up  class="size-5 text-green-400" /> 
             </a>
             @else 
