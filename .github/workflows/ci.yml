@@ -1,0 +1,153 @@
+name: CI (Laravel)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Mantener alineado con docker/php/Dockerfile (FROM php:8.3-fpm) y composer.json ("php": "^8.3")
+  PHP_VERSION: '8.3'
+  # Mismas extensiones que instala el Dockerfile + pdo_sqlite para la suite de tests (phpunit.xml usa sqlite :memory:)
+  PHP_EXTENSIONS: pdo_mysql, pdo_sqlite, mbstring, exif, pcntl, bcmath, gd, zip, redis
+  # Vite 8 requiere Node ^20.19 || >=22.12
+  NODE_VERSION: '22'
+
+jobs:
+  tests:
+    name: Tests (PHP 8.3)
+    runs-on: ubuntu-latest
+
+    services:
+      # Misma imagen que docker-compose.yml (servicio db)
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_ROOT_PASSWORD: rootpass
+          MARIADB_DATABASE: readings_db
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: ${{ env.PHP_EXTENSIONS }}
+          tools: composer:v2
+          coverage: none
+
+      - name: Get Composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-php${{ env.PHP_VERSION }}-composer-${{ hashFiles('composer.lock') }}
+          restore-keys: ${{ runner.os }}-php${{ env.PHP_VERSION }}-composer-
+
+      - name: Validate composer.json / composer.lock
+        run: composer validate --no-check-publish
+
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist --optimize-autoloader
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      # Las vistas usan @vite(): sin el manifest de public/build los tests de Feature devuelven 500
+      - name: Install & build frontend assets
+        run: |
+          npm ci
+          npm run build
+
+      - name: Prepare environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      # Verifica las migraciones contra el mismo motor que usa docker-compose (MariaDB 10.11)
+      - name: Run migrations on MariaDB
+        env:
+          DB_CONNECTION: mariadb
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: readings_db
+          DB_USERNAME: root
+          DB_PASSWORD: rootpass
+        run: php artisan migrate --force
+
+      # phpunit.xml fuerza sqlite :memory:, por eso no se exportan aquí las variables DB_*
+      - name: Run test suite
+        run: php artisan test
+
+      # El código actual aún no pasa Pint; se informa sin bloquear el pipeline.
+      # Quitar continue-on-error tras ejecutar `vendor/bin/pint` en local.
+      - name: Code style (Pint)
+        continue-on-error: true
+        run: vendor/bin/pint --test
+
+  docker:
+    name: Docker images
+    needs: tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate docker-compose.yml
+        run: docker compose config --quiet
+
+      - uses: docker/setup-buildx-action@v3
+
+      # Mismo contexto que docker-compose.yml (build.context: ./docker/php)
+      - name: Build PHP-FPM image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./docker/php
+          file: ./docker/php/Dockerfile
+          build-args: |
+            UID=1000
+            GID=1000
+          load: true
+          push: false
+          tags: readings-app:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test PHP image
+        run: |
+          docker run --rm readings-app:ci php -v
+          docker run --rm readings-app:ci composer -V
+          for ext in pdo_mysql mbstring exif pcntl bcmath gd zip redis; do
+            docker run --rm readings-app:ci php -m | grep -qi "^${ext}$" \
+              || { echo "Falta la extensión ${ext}"; exit 1; }
+          done
+
+      # nginx resuelve el upstream "app" al cargar la config, así que se mapea a localhost
+      - name: Validate nginx config
+        run: |
+          docker run --rm \
+            --add-host app:127.0.0.1 \
+            -v "$PWD/docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro" \
+            nginx:alpine nginx -t
+
+  deploy:
+    needs: docker
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy
+        run: echo "Aquí va el despliegue (SSH al VPS o hook del PaaS)"

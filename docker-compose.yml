@@ -40,7 +40,7 @@ services:
     container_name: readings_redis
     image: redis:alpine
     ports:
-      - "6380:3379"
+      - "6380:6379"
 
   phpmyadmin:
     container_name: readings_phpmyadmin
