@@ -12,7 +12,7 @@ test('se puede crear un reading', function () {
         'comment' => 'Peak',
     ])->assertSuccessful();
 
-    $this->assertDatabaseHas('readings', ['title' => 'Título que no existe']);
+    $this->assertDatabaseHas('readings', ['title' => 'Canto Espiritual']);
 });
 
 test('cambiar estado de me gusta', function () {
