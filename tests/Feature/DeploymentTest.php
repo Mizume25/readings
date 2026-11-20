@@ -13,7 +13,6 @@ test('se puede crear un reading', function () {
     ])->assertSuccessful();
 
     $this->assertDatabaseHas('readings', ['title' => 'Canto Espiritual']);
-    
 });
 
 test('cambiar estado de me gusta', function () {
